@@ -29,7 +29,7 @@ This project involves:
 - **[MySQL Community Server](https://dev.mysql.com/downloads/mysql/):** Used to host the database and build the Bronze, Silver, and Gold layers.
 - **[MySQL Workbench](https://dev.mysql.com/downloads/workbench/):** Used to write and run the SQL scripts and manage the database.
 - **[Git Repository](https://github.com/):** Used to manage, version, and share the project code on GitHub.
-- **[DrawIO](https://www.drawio.com/):** Used to design the data architecture, data models, and data flow diagrams.
+- **[Draw.io](https://www.drawio.com/):** Used to design the data architecture, data models, and data flow diagrams.
 - **[Notion](https://www.notion.com/):** Used for project management and organization.
 
 ---
