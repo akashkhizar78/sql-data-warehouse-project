@@ -4,7 +4,7 @@ Script: Load Bronze Layer (Source -> Bronze)
 ===============================================================================
 Purpose:
     Loads raw data from CSV files into the Bronze layer of the data warehouse
-    and records how long each table load and the whole run take.
+    and prints how long each table load and the whole run take.
 
 Bronze Layer:
     The first layer of the Medallion Architecture (Bronze, Silver, Gold).
@@ -13,166 +13,161 @@ Bronze Layer:
 Load Type:
     Full load. Each table is emptied and reloaded on every run, so the
     Bronze layer always mirrors the current source files and reruns never
-    create duplicates. It is a plain script and not a stored procedure,
-    because MySQL does not allow LOAD DATA inside a stored procedure.
+    create duplicates. The load is wrapped in a stored procedure, so the
+    whole Bronze layer can be refreshed with a single command:
+        EXEC bronze.load_bronze;
 
 WARNING:
-    Running this script deletes all existing rows in the six bronze tables
+    Running this procedure deletes all existing rows in the six bronze tables
     before reloading them.
-    
-Important: Local file loading must be enabled on both the MySQL server and the MySQL Workbench connection.
+
+Important: Replace <datasets_path> in the file paths below with the location of
+the datasets folder as seen by SQL Server (e.g. /var/opt/mssql/datasets when
+SQL Server runs in Docker).
 ===============================================================================
 */
 
+CREATE OR ALTER PROCEDURE bronze.load_bronze AS
+BEGIN
+    -- Timers for each table load and for the whole run
+    DECLARE @start_time DATETIME, @end_time DATETIME, @batch_start_time DATETIME, @batch_end_time DATETIME;
 
--- Record the start of the whole script (NOW(6) keeps microsecond precision).
-SET @script_start = NOW(6);
+    BEGIN TRY
+        SET @batch_start_time = GETDATE();
 
+        PRINT '========================================================================';
+        PRINT 'Loading the Bronze Layer';
+        PRINT '========================================================================';
 
--- ------------------------------------------------------------
--- Loading CRM Tables
--- ------------------------------------------------------------
+        -- ------------------------------------------------------------
+        -- Loading CRM Tables
+        -- ------------------------------------------------------------
+        PRINT '----------------------------------------------------------------';
+        PRINT 'Loading CRM Tables';
+        PRINT '----------------------------------------------------------------';
 
--- Record the start of this table load. The variable is reused by every table below.
-SET @table_start = NOW(6);
+        -- Each table follows the same steps: truncate, bulk insert, print duration
+        SET @start_time = GETDATE();
+        PRINT '>> Truncating Table: bronze.crm_cust_info';
+        TRUNCATE TABLE bronze.crm_cust_info;
 
--- Delete existing rows so a rerun replaces the data and does not duplicate it.
--- TRUNCATE is faster than DELETE and cannot be rolled back.
-TRUNCATE TABLE bronze.crm_cust_info;
+        PRINT '>> Inserting Data Into: bronze.crm_cust_info';
+        BULK INSERT bronze.crm_cust_info
+        FROM '<datasets_path>/source_crm/cust_info.csv'
+        WITH (
+            FIRSTROW = 2,             -- Skip the header row
+            FIELDTERMINATOR = ',',    -- Comma-separated columns
+            TABLOCK                   -- Lock the table for a faster load
+        );
+        SET @end_time = GETDATE();
+        PRINT '>> Load Duration: ' + CAST(DATEDIFF(second, @start_time, @end_time) AS NVARCHAR) + ' seconds';
+        PRINT '>> -------------';
 
--- Load the CSV file into the table. LOCAL means the file is read from this
--- computer and sent to the server, and the path must be the full file path.
-LOAD DATA LOCAL INFILE '/Users/akashkhizar/Desktop/Portfolio/SQL Data Warehouse Project/sql-data-warehouse-project/datasets/source_crm/cust_info.csv'
-INTO TABLE bronze.crm_cust_info
-FIELDS TERMINATED BY ','        -- Columns are separated by commas
-ENCLOSED BY '"'                 -- Values wrapped in double quotes are loaded without the quotes
-LINES TERMINATED BY '\r\n'      -- Each row ends with a Windows line break
-IGNORE 1 ROWS;                  -- Skip the header row
+        SET @start_time = GETDATE();
+        PRINT '>> Truncating Table: bronze.crm_prd_info';
+        TRUNCATE TABLE bronze.crm_prd_info;
 
--- Record the end time and show the load duration in seconds.
-SET @table_end = NOW(6);
+        PRINT '>> Inserting Data Into: bronze.crm_prd_info';
+        BULK INSERT bronze.crm_prd_info
+        FROM '<datasets_path>/source_crm/prd_info.csv'
+        WITH (
+            FIRSTROW = 2,
+            FIELDTERMINATOR = ',',
+            TABLOCK
+        );
+        SET @end_time = GETDATE();
+        PRINT '>> Load Duration: ' + CAST(DATEDIFF(second, @start_time, @end_time) AS NVARCHAR) + ' seconds';
+        PRINT '>> -------------';
 
-SELECT
-    'bronze.crm_cust_info' AS table_name,   -- Table that was loaded
-    @table_start AS start_time,             -- Time recorded before the truncate
-    @table_end AS end_time,                 -- Time recorded after the load finished
-    -- Difference in microseconds, divided by 1,000,000 to get seconds, rounded to 3 decimals
-    ROUND(TIMESTAMPDIFF(MICROSECOND, @table_start, @table_end) / 1000000, 3) AS duration_seconds;
+        SET @start_time = GETDATE();
+        PRINT '>> Truncating Table: bronze.crm_sales_details';
+        TRUNCATE TABLE bronze.crm_sales_details;
 
+        PRINT '>> Inserting Data Into: bronze.crm_sales_details';
+        BULK INSERT bronze.crm_sales_details
+        FROM '<datasets_path>/source_crm/sales_details.csv'
+        WITH (
+            FIRSTROW = 2,
+            FIELDTERMINATOR = ',',
+            TABLOCK
+        );
+        SET @end_time = GETDATE();
+        PRINT '>> Load Duration: ' + CAST(DATEDIFF(second, @start_time, @end_time) AS NVARCHAR) + ' seconds';
+        PRINT '>> -------------';
 
-SET @table_start = NOW(6);
+        -- ------------------------------------------------------------
+        -- Loading ERP Tables
+        -- ------------------------------------------------------------
+        PRINT '----------------------------------------------------------------';
+        PRINT 'Loading ERP Tables';
+        PRINT '----------------------------------------------------------------';
 
-TRUNCATE TABLE bronze.crm_prd_info;
+        SET @start_time = GETDATE();
+        PRINT '>> Truncating Table: bronze.erp_cust_az12';
+        TRUNCATE TABLE bronze.erp_cust_az12;
 
-LOAD DATA LOCAL INFILE '/Users/akashkhizar/Desktop/Portfolio/SQL Data Warehouse Project/sql-data-warehouse-project/datasets/source_crm/prd_info.csv'
-INTO TABLE bronze.crm_prd_info
-FIELDS TERMINATED BY ','
-ENCLOSED BY '"'
-LINES TERMINATED BY '\r\n'
-IGNORE 1 ROWS;
+        PRINT '>> Inserting Data Into: bronze.erp_cust_az12';
+        BULK INSERT bronze.erp_cust_az12
+        FROM '<datasets_path>/source_erp/CUST_AZ12.csv'
+        WITH (
+            FIRSTROW = 2,
+            FIELDTERMINATOR = ',',
+            TABLOCK
+        );
+        SET @end_time = GETDATE();
+        PRINT '>> Load Duration: ' + CAST(DATEDIFF(second, @start_time, @end_time) AS NVARCHAR) + ' seconds';
+        PRINT '>> -------------';
 
-SET @table_end = NOW(6);
+        SET @start_time = GETDATE();
+        PRINT '>> Truncating Table: bronze.erp_loc_a101';
+        TRUNCATE TABLE bronze.erp_loc_a101;
 
-SELECT
-    'bronze.crm_prd_info' AS table_name,
-    @table_start AS start_time,
-    @table_end AS end_time,
-    ROUND(TIMESTAMPDIFF(MICROSECOND, @table_start, @table_end) / 1000000, 3) AS duration_seconds;
+        PRINT '>> Inserting Data Into: bronze.erp_loc_a101';
+        BULK INSERT bronze.erp_loc_a101
+        FROM '<datasets_path>/source_erp/LOC_A101.csv'
+        WITH (
+            FIRSTROW = 2,
+            FIELDTERMINATOR = ',',
+            TABLOCK
+        );
+        SET @end_time = GETDATE();
+        PRINT '>> Load Duration: ' + CAST(DATEDIFF(second, @start_time, @end_time) AS NVARCHAR) + ' seconds';
+        PRINT '>> -------------';
 
+        SET @start_time = GETDATE();
+        PRINT '>> Truncating Table: bronze.erp_px_cat_g1v2';
+        TRUNCATE TABLE bronze.erp_px_cat_g1v2;
 
-SET @table_start = NOW(6);
+        PRINT '>> Inserting Data Into: bronze.erp_px_cat_g1v2';
+        BULK INSERT bronze.erp_px_cat_g1v2
+        FROM '<datasets_path>/source_erp/PX_CAT_G1V2.csv'
+        WITH (
+            FIRSTROW = 2,
+            FIELDTERMINATOR = ',',
+            TABLOCK
+        );
+        SET @end_time = GETDATE();
+        PRINT '>> Load Duration: ' + CAST(DATEDIFF(second, @start_time, @end_time) AS NVARCHAR) + ' seconds';
+        PRINT '>> -------------';
 
-TRUNCATE TABLE bronze.crm_sales_details;
+        -- ------------------------------------------------------------
+        -- Total Load Time
+        -- ------------------------------------------------------------
+        SET @batch_end_time = GETDATE();
+        PRINT '========================================================================';
+        PRINT 'Bronze Layer Loading Completed';
+        PRINT '   - Total Load Duration: ' + CAST(DATEDIFF(second, @batch_start_time, @batch_end_time) AS NVARCHAR) + ' seconds';
+        PRINT '========================================================================';
+    END TRY
 
-LOAD DATA LOCAL INFILE '/Users/akashkhizar/Desktop/Portfolio/SQL Data Warehouse Project/sql-data-warehouse-project/datasets/source_crm/sales_details.csv'
-INTO TABLE bronze.crm_sales_details
-FIELDS TERMINATED BY ','
-ENCLOSED BY '"'
-LINES TERMINATED BY '\r\n'
-IGNORE 1 ROWS;
-
-SET @table_end = NOW(6);
-
-SELECT
-    'bronze.crm_sales_details' AS table_name,
-    @table_start AS start_time,
-    @table_end AS end_time,
-    ROUND(TIMESTAMPDIFF(MICROSECOND, @table_start, @table_end) / 1000000, 3) AS duration_seconds;
-
-
--- ------------------------------------------------------------
--- Loading ERP Tables
--- ------------------------------------------------------------
-
-SET @table_start = NOW(6);
-
-TRUNCATE TABLE bronze.erp_loc_a101;
-
-LOAD DATA LOCAL INFILE '/Users/akashkhizar/Desktop/Portfolio/SQL Data Warehouse Project/sql-data-warehouse-project/datasets/source_erp/LOC_A101.csv'
-INTO TABLE bronze.erp_loc_a101
-FIELDS TERMINATED BY ','
-ENCLOSED BY '"'
-LINES TERMINATED BY '\r\n'
-IGNORE 1 ROWS;
-
-SET @table_end = NOW(6);
-
-SELECT
-    'bronze.erp_loc_a101' AS table_name,
-    @table_start AS start_time,
-    @table_end AS end_time,
-    ROUND(TIMESTAMPDIFF(MICROSECOND, @table_start, @table_end) / 1000000, 3) AS duration_seconds;
-
-
-SET @table_start = NOW(6);
-
-TRUNCATE TABLE bronze.erp_cust_az12;
-
-LOAD DATA LOCAL INFILE '/Users/akashkhizar/Desktop/Portfolio/SQL Data Warehouse Project/sql-data-warehouse-project/datasets/source_erp/CUST_AZ12.csv'
-INTO TABLE bronze.erp_cust_az12
-FIELDS TERMINATED BY ','
-ENCLOSED BY '"'
-LINES TERMINATED BY '\r\n'
-IGNORE 1 ROWS;
-
-SET @table_end = NOW(6);
-
-SELECT
-    'bronze.erp_cust_az12' AS table_name,
-    @table_start AS start_time,
-    @table_end AS end_time,
-    ROUND(TIMESTAMPDIFF(MICROSECOND, @table_start, @table_end) / 1000000, 3) AS duration_seconds;
-
-
-SET @table_start = NOW(6);
-
-TRUNCATE TABLE bronze.erp_px_cat_g1v2;
-
-LOAD DATA LOCAL INFILE '/Users/akashkhizar/Desktop/Portfolio/SQL Data Warehouse Project/sql-data-warehouse-project/datasets/source_erp/PX_CAT_G1V2.csv'
-INTO TABLE bronze.erp_px_cat_g1v2
-FIELDS TERMINATED BY ','
-ENCLOSED BY '"'
-LINES TERMINATED BY '\r\n'
-IGNORE 1 ROWS;
-
-SET @table_end = NOW(6);
-
-SELECT
-    'bronze.erp_px_cat_g1v2' AS table_name,
-    @table_start AS start_time,
-    @table_end AS end_time,
-    ROUND(TIMESTAMPDIFF(MICROSECOND, @table_start, @table_end) / 1000000, 3) AS duration_seconds;
-
-
--- ------------------------------------------------------------
--- Total Load Time
--- ------------------------------------------------------------
-
--- Record the end of the whole script and show the total duration in seconds.
-SET @script_end = NOW(6);
-
-SELECT
-    @script_start AS script_start_time,     -- Time recorded at the top of the script
-    @script_end AS script_end_time,         -- Time recorded after the last table loaded
-    -- Same calculation as above, this time covering all six tables together
-    ROUND(TIMESTAMPDIFF(MICROSECOND, @script_start, @script_end) / 1000000, 3) AS total_duration_seconds;
+    -- Runs only if a step above fails; the remaining loads are skipped
+    BEGIN CATCH
+        PRINT '========================================================================';
+        PRINT 'ERROR OCCURRED DURING LOADING BRONZE LAYER';
+        PRINT 'Error Message: ' + ERROR_MESSAGE();                    -- Description of the error
+        PRINT 'Error Number: ' + CAST(ERROR_NUMBER() AS NVARCHAR);    -- SQL Server error code
+        PRINT 'Error State: ' + CAST(ERROR_STATE() AS NVARCHAR);      -- Helps pinpoint where the error was raised
+        PRINT '========================================================================';
+    END CATCH
+END
+GO
