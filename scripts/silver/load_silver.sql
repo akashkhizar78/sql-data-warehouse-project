@@ -3,9 +3,8 @@
 Script: Load Silver Layer (Bronze -> Silver)
 ===============================================================================
 Purpose:
-    Cleans and standardizes the raw data in the Bronze layer and loads it into
-    the Silver layer of the data warehouse. Prints how long each table load
-    and the whole run take.
+    This stored procedure performs the ETL (Extract, Transform, Load) process
+    to populate the 'Silver' schema tales from the bronze schema. 
 
 Silver Layer:
     The second layer of the Medallion Architecture (Bronze, Silver, Gold).
