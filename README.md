@@ -26,8 +26,9 @@ This project involves:
 
 ## 🛠️ Tools Used
 
-- **[MySQL Community Server](https://dev.mysql.com/downloads/mysql/):** Used to host the database and build the Bronze, Silver, and Gold layers.
-- **[MySQL Workbench](https://dev.mysql.com/downloads/workbench/):** Used to write and run the SQL scripts and manage the database.
+- **[SQL Server](https://www.microsoft.com/en-us/sql-server/sql-server-downloads):** Used to host the database and build the Bronze, Silver, and Gold layers.
+- **[Docker](https://www.docker.com/):** Used to run SQL Server in a container on macOS, since SQL Server does not run natively on Mac.
+- **[Visual Studio Code](https://code.visualstudio.com/):** Used to write and run the SQL scripts and manage the database, with the SQL Server (mssql) extension.
 - **[Git Repository](https://github.com/):** Used to manage, version, and share the project code on GitHub.
 - **[Draw.io](https://www.drawio.com/):** Used to design the data architecture, data models, and data flow diagrams.
 - **[Notion](https://www.notion.com/):** Used for project management and organization.
@@ -39,7 +40,7 @@ This project involves:
 ### Building the Data Warehouse (Data Engineering)
 
 #### Objective
-Develop a modern data warehouse using MySQL to consolidate sales data, enabling analytical reporting and informed decision-making.
+Develop a modern data warehouse using SQL Server to consolidate sales data, enabling analytical reporting and informed decision-making.
 
 #### Specifications
 - **Data Sources**: Import data from two source systems (ERP and CRM) provided as CSV files.
