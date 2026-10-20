@@ -67,7 +67,7 @@ These insights empower stakeholders with key business metrics, enabling strategi
 
 The data architecture follows the Medallion Architecture, which organizes data into **Bronze**, **Silver**, and **Gold** layers.
 
-![Data Architecture](docs/Data%20Architecture.png)
+![Data Architecture](docs/Data%20architecture.png)
 
 - **Bronze Layer**: Stores raw data as-is from the source systems. Data is ingested from CSV files into the SQL Server database.
 - **Silver Layer**: Includes cleansing, standardization, and normalization processes to prepare data for analysis.
